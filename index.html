@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>めきき市場 出納帳</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#b5651d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="めきき出納帳">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#ffffff; --ink:#2b2620; --sub:#7a726a; --muted:#9a938a;
+    --line:#e7e1d8; --accent:#b5651d; --accent-bg:#f6ede2; --green:#2e7d5b; --green-bg:#e8f3ee;
+    --warn-bg:#fbf0dd; --danger:#b23b3b; --danger-bg:#f8e7e4; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+    -webkit-text-size-adjust:100%;}
+  .wrap{max-width:820px;margin:0 auto;padding:16px 14px 60px;}
+  h1{font-size:20px;margin:0;font-weight:600;}
+  h2{font-size:15px;margin:0 0 10px;font-weight:600;color:var(--ink);}
+  .muted{color:var(--sub);font-size:13px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;margin:12px 0;}
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:2px;}
+  /* drop zone */
+  #drop{border:2px dashed var(--line);border-radius:var(--radius);padding:26px 16px;text-align:center;
+    background:var(--card);cursor:pointer;transition:.15s;}
+  #drop.hot{border-color:var(--accent);background:var(--accent-bg);}
+  #drop .big{font-size:15px;font-weight:600;}
+  .btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);
+    padding:9px 14px;border-radius:10px;font-size:14px;cursor:pointer;font-weight:600;}
+  .btn:hover{background:var(--bg);}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn.primary:hover{filter:brightness(1.05);}
+  .row2{display:flex;gap:12px;flex-wrap:wrap;}
+  .field{flex:1;min-width:150px;}
+  .field label{display:block;font-size:12px;color:var(--sub);margin-bottom:4px;}
+  .field input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-size:16px;
+    background:#fff;color:var(--ink);}
+  /* table */
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table.members{width:100%;border-collapse:collapse;font-size:14px;min-width:560px;}
+  table.members th,table.members td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;}
+  table.members th{font-size:12px;color:var(--sub);font-weight:600;background:var(--bg);position:sticky;top:0;}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .toggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .toggle button{border:0;background:#fff;padding:5px 10px;font-size:13px;cursor:pointer;color:var(--sub);}
+  .toggle button.on{background:var(--accent);color:#fff;}
+  .stepper{display:inline-flex;align-items:center;gap:6px;}
+  .stepper button{width:26px;height:26px;border:1px solid var(--line);background:#fff;border-radius:7px;font-size:16px;cursor:pointer;line-height:1;}
+  .stepper span{min-width:16px;text-align:center;font-variant-numeric:tabular-nums;}
+  select.kessai{padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff;color:var(--ink);}
+  .badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:20px;background:var(--bg);color:var(--sub);}
+  .ng{color:var(--danger);font-weight:600;}
+  /* dashboard */
+  .flow{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;}
+  .stage{flex:1;min-width:170px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+  .stage.acc{border-color:var(--accent);}
+  .stage.grn{border-color:var(--green);}
+  .stage .lab{font-size:12px;color:var(--sub);}
+  .stage .val{font-size:25px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:3px;}
+  .stage.acc .val{color:var(--accent);}
+  .stage.grn .val{color:var(--green);}
+  .stage .sub{font-size:11px;color:var(--muted);margin-top:5px;}
+  .arrow{align-self:center;color:var(--muted);font-size:18px;}
+  .mini{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+  .tile{flex:1;min-width:140px;background:var(--bg);border-radius:var(--radius);padding:10px 13px;}
+  .tile .l{font-size:12px;color:var(--sub);}
+  .tile .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .tile .s{font-size:11px;color:var(--muted);}
+  .lists{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;}
+  .list{flex:1;min-width:250px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:12px 15px;}
+  .list h3{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between;align-items:baseline;}
+  .list table{width:100%;border-collapse:collapse;font-size:13px;}
+  .list td{padding:4px 0;border-bottom:1px solid var(--line);}
+  .list td:last-child{text-align:right;font-variant-numeric:tabular-nums;}
+  .diff-ok{color:var(--green);font-weight:700;}
+  .diff-bad{color:var(--danger);font-weight:700;}
+  .hidden{display:none!important;}
+  .note{background:var(--warn-bg);border-radius:var(--radius);padding:11px 14px;font-size:13px;color:var(--sub);margin-top:14px;}
+  .foot{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🏮 めきき市場 出納帳</h1>
+    <span class="muted" id="monthLabel"></span>
+  </header>
+  <p class="muted" id="intro">清算明細PDFを読み込んで、参加・人数・決済を選ぶだけ。計算は自動。データは端末の中だけで処理します。</p>
+
+  <!-- STEP1: PDF -->
+  <div class="card" id="dropCard">
+    <div id="drop">
+      <div class="big">📄 今月の清算明細PDFを読み込む</div>
+      <div class="muted" style="margin-top:6px">下のボタンで選ぶのが簡単です（複数OK・ドラッグでも可）</div>
+      <button type="button" class="btn primary" id="pickBtn" style="margin-top:14px;font-size:16px;padding:12px 22px">📁 ファイルを選ぶ</button>
+      <input type="file" id="file" accept="application/pdf" multiple class="hidden">
+    </div>
+    <div id="parseMsg" class="muted" style="margin-top:10px"></div>
+  </div>
+
+  <!-- STEP2: 入力 -->
+  <div class="card hidden" id="inputCard">
+    <div class="row2" style="margin-bottom:12px">
+      <div class="field"><label>釣り銭（開始現金）</label><input type="number" id="tsuri" inputmode="numeric" value="30000"></div>
+      <div class="field"><label>実査額（当日数えた現金・任意）</label><input type="number" id="jissa" inputmode="numeric" placeholder="後で入力OK"></div>
+    </div>
+    <h2>会員（例外だけ直す）</h2>
+    <p class="muted" style="margin:-4px 0 10px">既定＝参加あり・1人・現金。GOENは据置、参加なし＋現金は自動であと渡し。</p>
+    <div class="tablewrap">
+      <table class="members">
+        <thead><tr><th>番号</th><th>名前</th><th>参加</th><th>人数</th><th>決済</th><th class="num">精算額</th><th>検算</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- STEP3: ダッシュボード -->
+  <div id="dash" class="hidden">
+    <h2 style="margin:18px 0 8px">📊 集計</h2>
+    <div class="flow">
+      <div class="stage acc"><div class="lab">① 当日現金（理論）</div><div class="val" id="s1">¥0</div><div class="sub">箱を数えたらこの額。<b>実査で合わせる</b></div></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="lab">② あと渡し後の現金</div><div class="val" id="s2">¥0</div><div class="sub" id="s2sub">後日渡す分を引いた残り</div></div>
+      <div class="arrow">→</div>
+      <div class="stage grn"><div class="lab">③ 正味（最終手残り）</div><div class="val" id="s3">¥0</div><div class="sub" id="s3sub">振込も引いた会社の手残り</div></div>
+    </div>
+    <div class="mini">
+      <div class="tile"><div class="l">朝の会費（現金）</div><div class="v" id="mKaihi">¥0</div><div class="s" id="mKaihiS"></div></div>
+      <div class="tile"><div class="l">市場主GOEN 据置</div><div class="v" id="mSueoki">¥0</div><div class="s">自社分は箱に残す</div></div>
+      <div class="tile"><div class="l">付添人数（2人目〜）</div><div class="v" id="mTsuki">0人</div><div class="s" id="mTsukiS"></div></div>
+      <div class="tile" id="diffTile"><div class="l">差異（実査−①）</div><div class="v" id="mDiff">—</div><div class="s">0が理想</div></div>
+    </div>
+    <div class="lists">
+      <div class="list"><h3>💴 あと渡し（後日・現金）<span class="muted" id="atoTotal">計 ¥0</span></h3><table><tbody id="atoList"></tbody></table><div class="muted" id="atoEmpty" style="margin-top:6px">なし</div></div>
+      <div class="list"><h3>🏦 振込（銀行）<span class="muted" id="furiTotal">計 ¥0</span></h3><table><tbody id="furiList"></tbody></table><div class="muted" id="furiEmpty" style="margin-top:6px">なし</div></div>
+    </div>
+    <div class="foot">
+      <button class="btn primary" id="dlKaikei">会計用CSV（税理士用）</button>
+      <button class="btn" id="dlCash">出納帳CSV</button>
+      <button class="btn" id="dlFuri">振込CSV</button>
+      <button class="btn" id="dlAto">あと渡しCSV</button>
+      <button class="btn" id="reset" style="margin-left:auto">クリア</button>
+    </div>
+    <div class="note" id="jissaNote">⏳ 当日の <b>実査額</b> を入れると、①との <b>差異</b> が出て締められます。</div>
+  </div>
+
+  <p class="sr" aria-live="polite" id="live"></p>
+</div>
+
+<script src="lib/pdf.min.js"></script>
+<script>
+"use strict";
+pdfjsLib.GlobalWorkerOptions.workerSrc = "lib/pdf.worker.min.js";
+
+/* ===== 定数（Python版と一致）===== */
+const KAIHI_IPPAN=2200, KAIHI_TSUKISOI=1100, MARKET_OWNER=1, DEFAULT_EXEMPT=new Set([1,11]);
+const CASH="現金", FURI="振込", ATO="現金あと渡し", SUE="据置";
+const yen = n => "¥" + (n<0?"-":"") + Math.abs(n).toLocaleString("ja-JP");
+
+/* ===== PDF抽出 ===== */
+function norm(s){ return (s||"").normalize("NFKC"); }
+function amount(s){ const m=norm(s).match(/[¥￥\\]\s*([\d,]+)/); return m?parseInt(m[1].replace(/,/g,""),10):null; }
+function kwAmount(text,kw){ const m=text.match(new RegExp(kw+"\\s*[¥￥\\\\]\\s*([\\d,]+)")); return m?parseInt(m[1].replace(/,/g,""),10):null; }
+
+function parseSeisan(text){
+  text = norm(text);
+  const d={};
+  let m=text.match(/会員番号\s*(\d+)/); d.no = m?parseInt(m[1],10):null;
+  m=text.match(/発行日\s*(\d{4}-\d{2}-\d{2})/); d.date = m?m[1]:null;
+  // 名前：「様」を含む最初の行の、様より前
+  let name=null;
+  for(const line of text.split("\n")){ const i=line.indexOf("様"); if(i>0){ name=line.slice(0,i).trim(); break; } }
+  d.name = name || ("会員"+(d.no||"?"));
+  const uri=kwAmount(text,"売り")||0, kai=kwAmount(text,"買い")||0, tesu=kwAmount(text,"手数料")||0;
+  const uketori=kwAmount(text,"御取分")||0, shiharai=kwAmount(text,"御支払")||0;
+  d.uri=uri; d.kai=kai; d.tesu=tesu; d.uketori=uketori; d.shiharai=shiharai;
+  d.seisan = uketori - shiharai;
+  d.kensan = shiharai ? ((kai+tesu-uri)===shiharai) : true;
+  return d;
+}
+
+async function extractText(arrayBuffer){
+  const pdf = await pdfjsLib.getDocument({data:arrayBuffer}).promise;
+  let out=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const tc=await page.getTextContent();
+    // y座標で行にまとめる
+    const lines=new Map();
+    for(const it of tc.items){
+      const y=Math.round(it.transform[5]);
+      const x=it.transform[4];
+      if(!lines.has(y)) lines.set(y,[]);
+      lines.get(y).push({x, s:it.str});
+    }
+    const ys=[...lines.keys()].sort((a,b)=>b-a);
+    for(const y of ys){
+      out.push(lines.get(y).sort((a,b)=>a.x-b.x).map(o=>o.s).join(" "));
+    }
+  }
+  return out.join("\n");
+}
+
+/* ===== 会費・計算（Python版と一致）===== */
+let RECORDS=[];         // PDFから（RECMAPから生成）
+let RECMAP=new Map();   // no -> rec（何回ドロップしても積み上がる）
+let STATE={};           // no -> {sanka, ninzu, kessai}
+let YM="unknown";
+let loadedYM=null;      // localStorage復元は月ごと一度だけ
+
+function kaihiOf(no, sanka, ninzu, exempt){
+  if(exempt.has(no)) return 0;
+  if(sanka==="なし") return KAIHI_IPPAN;
+  const n=Math.max(1, ninzu||1);
+  return KAIHI_IPPAN + KAIHI_TSUKISOI*(n-1);
+}
+function computeRow(rec, st, exempt){
+  let sanka=st.sanka, ninzu=st.ninzu, kessai=st.kessai;
+  if(sanka==="なし" && kessai===CASH) kessai=ATO;   // 来ていない＋現金＝後日渡し
+  const seisan=rec.seisan;
+  const kaihi=kaihiOf(rec.no, sanka, ninzu, exempt);
+  let morning, net;
+  if(sanka==="あり"){ morning=kaihi; net=seisan; }
+  else { morning=0; net=seisan-kaihi; }
+  const impact = (kessai===CASH) ? (morning-net) : morning;
+  return {
+    no:rec.no, name:rec.name, sanka, ninzu, seisan, kaihi, kessaiEff:kessai,
+    impact, morning,
+    ato: kessai===ATO?net:0, furi: kessai===FURI?net:0, sue: kessai===SUE?net:0,
+    kensan:rec.kensan
+  };
+}
+function build(){
+  const exempt=new Set(DEFAULT_EXEMPT);
+  const tsuri=parseInt(document.getElementById("tsuri").value||"0",10)||0;
+  const jissaRaw=document.getElementById("jissa").value;
+  const jissa = jissaRaw==="" ? null : (parseInt(jissaRaw,10)||0);
+  const rows=RECORDS.map(r=>computeRow(r, STATE[r.no], exempt)).sort((a,b)=>(a.no||9999)-(b.no||9999));
+  const sum=(f)=>rows.reduce((t,x)=>t+f(x),0);
+  const kaihiAsa=sum(x=>x.morning);
+  const ninzuAll=sum(x=>x.sanka==="あり"?(x.ninzu||0):0);
+  const tsuki=sum(x=>x.sanka==="あり"?Math.max(0,(x.ninzu||1)-1):0);
+  const cashDelta=sum(x=>x.impact);
+  const atoTotal=sum(x=>x.ato), furiTotal=sum(x=>x.furi), sueTotal=sum(x=>x.sue);
+  const s1=tsuri+cashDelta, s2=s1-atoTotal, s3=s2-furiTotal;
+  return {rows,tsuri,jissa,kaihiAsa,ninzuAll,tsuki,cashDelta,atoTotal,furiTotal,sueTotal,s1,s2,s3,
+    diff: jissa===null?null:(jissa-s1)};
+}
+
+/* ===== 描画 ===== */
+function renderTable(){
+  const tb=document.getElementById("tbody"); tb.innerHTML="";
+  RECORDS.slice().sort((a,b)=>(a.no||9999)-(b.no||9999)).forEach(r=>{
+    const st=STATE[r.no];
+    const tr=document.createElement("tr");
+    const eff = (st.sanka==="なし"&&st.kessai===CASH)?ATO:st.kessai;
+    tr.innerHTML=`
+      <td>${r.no??""}</td>
+      <td>${r.name}</td>
+      <td><span class="toggle" data-no="${r.no}">
+        <button data-v="あり" class="${st.sanka==="あり"?"on":""}">あり</button>
+        <button data-v="なし" class="${st.sanka==="なし"?"on":""}">なし</button></span></td>
+      <td><span class="stepper" data-no="${r.no}"><button data-d="-1">−</button><span>${st.ninzu}</span><button data-d="1">＋</button></span></td>
+      <td><select class="kessai" data-no="${r.no}">
+        <option ${eff===CASH?"selected":""}>現金</option>
+        <option ${eff===FURI?"selected":""}>振込</option>
+        <option ${eff===ATO?"selected":""}>現金あと渡し</option>
+        <option ${eff===SUE?"selected":""}>据置</option></select></td>
+      <td class="num">${yen(r.seisan)}</td>
+      <td>${r.kensan?'<span class="badge">OK</span>':'<span class="ng">要確認</span>'}</td>`;
+    tb.appendChild(tr);
+  });
+}
+function renderDash(){
+  const d=build();
+  document.getElementById("s1").textContent=yen(d.s1);
+  document.getElementById("s2").textContent=yen(d.s2);
+  document.getElementById("s3").textContent=yen(d.s3);
+  document.getElementById("s2sub").textContent="後日渡す "+yen(d.atoTotal)+" を引いた残り";
+  document.getElementById("s3sub").textContent="振込 "+yen(d.furiTotal)+" も引いた会社の手残り";
+  document.getElementById("mKaihi").textContent=yen(d.kaihiAsa);
+  document.getElementById("mKaihiS").textContent="参加"+d.ninzuAll+"名分";
+  document.getElementById("mSueoki").textContent=yen(d.sueTotal);
+  document.getElementById("mTsuki").textContent=d.tsuki+"人";
+  const comp=d.rows.filter(x=>x.sanka==="あり"&&(x.ninzu||1)>=2).map(x=>x.no+" "+x.name);
+  document.getElementById("mTsukiS").textContent=comp.length?comp.join("・"):"いません";
+  // 差異
+  const mDiff=document.getElementById("mDiff");
+  if(d.diff===null){ mDiff.textContent="—"; mDiff.className="v"; }
+  else { mDiff.textContent=yen(d.diff); mDiff.className="v "+(d.diff===0?"diff-ok":"diff-bad"); }
+  // リスト
+  fillList("ato", d.rows.filter(x=>x.kessaiEff===ATO).map(x=>({no:x.no,name:x.name,v:x.ato})), d.atoTotal);
+  fillList("furi", d.rows.filter(x=>x.kessaiEff===FURI).map(x=>({no:x.no,name:x.name,v:x.furi})), d.furiTotal);
+  document.getElementById("dash").classList.remove("hidden");
+}
+function fillList(prefix, items, total){
+  const tb=document.getElementById(prefix+"List");
+  const empty=document.getElementById(prefix+"Empty");
+  document.getElementById(prefix+"Total").textContent="計 "+yen(total);
+  tb.innerHTML="";
+  if(!items.length){ empty.classList.remove("hidden"); return; }
+  empty.classList.add("hidden");
+  items.forEach(it=>{
+    const tr=document.createElement("tr");
+    const dir = it.v>0?"市場→本人":"本人→市場";
+    tr.innerHTML=`<td>${it.no} ${it.name} <span class="muted">${dir}</span></td><td>${yen(it.v)}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+/* ===== 保存（端末内・月ごと）===== */
+function save(){
+  const data={tsuri:document.getElementById("tsuri").value, jissa:document.getElementById("jissa").value, state:STATE};
+  try{ localStorage.setItem("meki:"+YM, JSON.stringify(data)); }catch(e){}
+}
+function load(){
+  try{
+    const raw=localStorage.getItem("meki:"+YM); if(!raw) return;
+    const data=JSON.parse(raw);
+    if(data.tsuri!=null) document.getElementById("tsuri").value=data.tsuri;
+    if(data.jissa!=null) document.getElementById("jissa").value=data.jissa;
+    if(data.state) for(const no in data.state){ if(STATE[no]) STATE[no]=data.state[no]; }
+  }catch(e){}
+}
+function refresh(){ renderTable(); renderDash(); save(); }
+
+/* ===== PDF読み込み ===== */
+async function handleFiles(files){
+  const pdfs=[...files].filter(f=>f.name.toLowerCase().endsWith(".pdf")||f.type==="application/pdf");
+  if(!pdfs.length){ msg("PDFが見つかりません"); return; }
+  const before=RECMAP.size;
+  msg("読み取り中… 0/"+pdfs.length);
+  let added=0, i=0;
+  for(const f of pdfs){
+    try{
+      const buf=await f.arrayBuffer();
+      const text=await extractText(buf);
+      const rec=parseSeisan(text);
+      if(rec.no==null){ continue; }
+      RECMAP.set(rec.no, rec);   // 積み上げ（同じ番号は上書き）
+      added++;
+    }catch(e){ console.error("parse fail",f.name,e); }
+    msg("読み取り中… "+(++i)+"/"+pdfs.length);
+  }
+  RECORDS=[...RECMAP.values()];
+  if(!RECORDS.length){ msg("金額を読み取れませんでした。PDFの書式をご確認ください。"); return; }
+  YM = RECORDS[0].date ? RECORDS[0].date.slice(0,7).replace("-","") : "unknown";
+  const ng = RECORDS.filter(r=>!r.kensan).length;
+  document.getElementById("monthLabel").textContent = (YM!=="unknown"? (YM.slice(0,4)+"年"+parseInt(YM.slice(4),10)+"月 ／ "):"")+RECORDS.length+"名・"+(ng?("検算NG "+ng+"件"):"全員 検算OK ✓");
+  // 新しい会員だけ初期値をセット（既存の入力は保持）
+  RECORDS.forEach(r=>{ if(!STATE[r.no]) STATE[r.no]={sanka:"あり", ninzu:1, kessai: r.no===MARKET_OWNER?SUE:CASH}; });
+  if(loadedYM!==YM){ load(); loadedYM=YM; }   // 保存済みの入力を月ごと一度だけ復元
+  document.getElementById("inputCard").classList.remove("hidden");
+  const newCount = RECMAP.size - before;
+  msg("読み取り完了：今回 "+newCount+"枚 → 合計 "+RECORDS.length+"名"+(ng?("／検算NG "+ng+"件（要確認）"):" ・全員検算OK ✓"));
+  refresh();
+  document.getElementById("inputCard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function msg(t){ document.getElementById("parseMsg").textContent=t; document.getElementById("live").textContent=t; }
+
+/* ===== CSV ===== */
+const CSVESC=v=>{ v=(v==null?"":String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+// 端末に応じて保存/共有：iPhoneアプリ(Capacitor)なら共有シート、ブラウザならダウンロード
+async function saveOrShare(name, text){
+  const cap=window.Capacitor;
+  if(cap && cap.isNativePlatform && cap.isNativePlatform()){
+    try{
+      const FS=cap.Plugins.Filesystem, Share=cap.Plugins.Share;
+      const w=await FS.writeFile({ path:name, data:"﻿"+text, directory:"CACHE", encoding:"utf8" });
+      await Share.share({ title:name, url:w.uri, dialogTitle:name+" を送る" });
+      return;
+    }catch(e){ console.error("share fail",e); alert("共有できませんでした：\n"+e); return; }
+  }
+  const blob=new Blob(["﻿"+text], {type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function csvDownload(name, header, rows){
+  const text=[header.join(",")].concat(rows.map(r=>r.map(CSVESC).join(","))).join("\r\n");
+  saveOrShare(name, text);
+}
+function exportCash(){ const d=build();
+  csvDownload("cashbook_"+YM+".csv",
+    ["会員番号","名前","参加","人数","精算額","会費","決済","当日現金インパクト","検算OK"],
+    d.rows.map(x=>[x.no,x.name,x.sanka,x.ninzu,x.seisan,x.kaihi,x.kessaiEff,x.impact,x.kensan]));
+}
+function exportFuri(){ const d=build();
+  csvDownload("transfers_"+YM+".csv",["会員番号","名前","金額","向き"],
+    d.rows.filter(x=>x.kessaiEff===FURI).map(x=>[x.no,x.name,x.furi, x.furi>0?"市場→本人":"本人→市場"])); }
+function exportAto(){ const d=build();
+  csvDownload("cash_later_"+YM+".csv",["会員番号","名前","金額","向き"],
+    d.rows.filter(x=>x.kessaiEff===ATO).map(x=>[x.no,x.name,x.ato, x.ato>0?"市場→本人":"本人→市場"])); }
+
+/* 会計用CSV（税理士向け）：会員別明細＋集計 */
+function exportKaikei(){
+  const d=build();
+  const rec=new Map(RECORDS.map(r=>[r.no,r]));
+  const S=(f)=>RECORDS.reduce((t,r)=>t+f(r),0);
+  const uriT=S(r=>r.uri||0), kaiT=S(r=>r.kai||0), tesuT=S(r=>r.tesu||0);
+  const kaihiT=d.rows.reduce((t,x)=>t+x.kaihi,0);
+  const ymLabel = YM!=="unknown" ? (YM.slice(0,4)+"年"+parseInt(YM.slice(4),10)+"月") : "";
+  const rows=[];
+  rows.push(["めきき市場 会計サマリー", ymLabel]);
+  rows.push([]);
+  rows.push(["■ 会員別明細"]);
+  rows.push(["会員番号","名前","売り","買い","手数料","精算額(＋市場→本人/−本人→市場)","会費","決済"]);
+  d.rows.forEach(x=>{ const r=rec.get(x.no)||{};
+    rows.push([x.no,x.name,r.uri||0,r.kai||0,r.tesu||0,x.seisan,x.kaihi,x.kessaiEff]); });
+  rows.push([]);
+  rows.push(["■ 集計","金額"]);
+  rows.push(["会費収入（合計）",kaihiT]);
+  rows.push(["手数料収入（合計）",tesuT]);
+  rows.push(["売り合計",uriT]);
+  rows.push(["買い合計",kaiT]);
+  rows.push([]);
+  rows.push(["■ 現金","金額"]);
+  rows.push(["釣り銭（開始現金）",d.tsuri]);
+  rows.push(["①当日現金（理論）",d.s1]);
+  rows.push(["実査現金", d.jissa===null?"（未入力）":d.jissa]);
+  rows.push(["差異（実査−①）", d.jissa===null?"":d.diff]);
+  rows.push(["うち市場主GOEN据置（箱に残す）",d.sueTotal]);
+  rows.push([]);
+  rows.push(["■ 支払内訳","金額"]);
+  rows.push(["あと渡し（後日・現金で支払）",d.atoTotal]);
+  rows.push(["振込（銀行で支払）",d.furiTotal]);
+  rows.push(["②あと渡し後の現金",d.s2]);
+  rows.push(["③正味（最終手残り）",d.s3]);
+  csvDownloadRaw("会計サマリー_"+YM+".csv", rows);
+}
+function csvDownloadRaw(name, rows){
+  saveOrShare(name, rows.map(r=>r.map(CSVESC).join(",")).join("\r\n"));
+}
+
+/* ===== イベント ===== */
+const drop=document.getElementById("drop"), file=document.getElementById("file");
+drop.addEventListener("click",()=>file.click());
+document.getElementById("pickBtn").addEventListener("click",e=>{ e.stopPropagation(); file.click(); });
+file.addEventListener("change",e=>handleFiles(e.target.files));
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hot");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hot");}));
+drop.addEventListener("drop",e=>handleFiles(e.dataTransfer.files));
+document.getElementById("tbody").addEventListener("click",e=>{
+  const tgBtn=e.target.closest(".toggle button");
+  if(tgBtn){ const no=+tgBtn.parentElement.dataset.no; STATE[no].sanka=tgBtn.dataset.v; refresh(); return; }
+  const stBtn=e.target.closest(".stepper button");
+  if(stBtn){ const no=+stBtn.parentElement.dataset.no; STATE[no].ninzu=Math.max(1,(STATE[no].ninzu||1)+ (+stBtn.dataset.d)); refresh(); return; }
+});
+document.getElementById("tbody").addEventListener("change",e=>{
+  const sel=e.target.closest("select.kessai");
+  if(sel){ const no=+sel.dataset.no; STATE[no].kessai=sel.value; refresh(); }
+});
+document.getElementById("tsuri").addEventListener("input",renderDash);
+document.getElementById("tsuri").addEventListener("change",save);
+document.getElementById("jissa").addEventListener("input",renderDash);
+document.getElementById("jissa").addEventListener("change",save);
+document.getElementById("dlKaikei").addEventListener("click",exportKaikei);
+document.getElementById("dlCash").addEventListener("click",exportCash);
+document.getElementById("dlFuri").addEventListener("click",exportFuri);
+document.getElementById("dlAto").addEventListener("click",exportAto);
+document.getElementById("reset").addEventListener("click",()=>{
+  if(!confirm("読み込んだPDFと入力をクリアします。よろしいですか？")) return;
+  RECORDS=[]; RECMAP.clear(); STATE={}; loadedYM=null; document.getElementById("inputCard").classList.add("hidden");
+  document.getElementById("dash").classList.add("hidden"); document.getElementById("monthLabel").textContent="";
+  msg(""); file.value="";
+});
+
+/* PWA：オフライン動作・ホーム画面追加のためのService Worker登録 */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(e=>console.warn("SW登録失敗",e)));
+}
+</script>
+</body>
+</html>
