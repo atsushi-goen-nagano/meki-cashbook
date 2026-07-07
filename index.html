@@ -106,6 +106,7 @@
       <input type="file" id="file" accept="application/pdf" multiple class="hidden">
     </div>
     <div id="parseMsg" class="muted" style="margin-top:10px"></div>
+    <div id="savedMonths"></div>
   </div>
 
   <!-- STEP2: 入力 -->
@@ -320,8 +321,42 @@ function fillList(prefix, items, total){
 
 /* ===== 保存（端末内・月ごと）===== */
 function save(){
-  const data={tsuri:document.getElementById("tsuri").value, jissa:document.getElementById("jissa").value, state:STATE};
+  if(YM==="unknown"||!RECORDS.length) return;
+  const data={tsuri:document.getElementById("tsuri").value, jissa:document.getElementById("jissa").value,
+              state:STATE, records:RECORDS, savedAt:new Date().toISOString()};
   try{ localStorage.setItem("meki:"+YM, JSON.stringify(data)); }catch(e){}
+  renderSaved();
+}
+/* 保存済みの月：PDFなしで開き直せる保管場所 */
+function renderSaved(){
+  const box=document.getElementById("savedMonths"); if(!box) return;
+  const yms=Object.keys(localStorage).filter(k=>k.startsWith("meki:")).map(k=>k.slice(5)).sort().reverse();
+  if(!yms.length){ box.innerHTML=""; return; }
+  box.innerHTML='<div class="muted" style="margin:14px 0 6px">📚 保存済みの月（タップで開く・PDF不要）</div>'+
+    yms.map(ym=>{
+      const label=ym.slice(0,4)+"年"+parseInt(ym.slice(4),10)+"月";
+      return '<span style="display:inline-flex;align-items:center;gap:4px;margin:0 8px 8px 0">'+
+        '<button class="btn" data-open="'+ym+'">'+label+'</button>'+
+        '<button class="btn" data-del="'+ym+'" title="削除" style="padding:9px 10px">🗑</button></span>';
+    }).join("");
+}
+function openSaved(ym){
+  try{
+    const data=JSON.parse(localStorage.getItem("meki:"+ym)||"null");
+    if(!data||!data.records||!data.records.length){ alert("この月には保管データ（明細）がありません。PDFを読み込んでください。"); return; }
+    YM=ym; loadedYM=ym;
+    RECMAP=new Map(data.records.map(r=>[r.no,r])); RECORDS=[...RECMAP.values()];
+    STATE=data.state||{};
+    RECORDS.forEach(r=>{ if(!STATE[r.no]) STATE[r.no]={sanka:"あり",ninzu:1,kessai:r.no===MARKET_OWNER?SUE:CASH}; });
+    if(data.tsuri!=null) document.getElementById("tsuri").value=data.tsuri;
+    document.getElementById("jissa").value=data.jissa!=null?data.jissa:"";
+    const ng=RECORDS.filter(r=>!r.kensan).length;
+    document.getElementById("monthLabel").textContent=ym.slice(0,4)+"年"+parseInt(ym.slice(4),10)+"月 ／ "+RECORDS.length+"名・"+(ng?("検算NG "+ng+"件"):"全員 検算OK ✓");
+    document.getElementById("inputCard").classList.remove("hidden");
+    msg("保管データから復元しました（"+RECORDS.length+"名）");
+    refresh();
+    document.getElementById("inputCard").scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(e){ alert("復元できませんでした：\n"+e); }
 }
 function load(){
   try{
@@ -473,6 +508,18 @@ document.getElementById("reset").addEventListener("click",()=>{
   document.getElementById("dash").classList.add("hidden"); document.getElementById("monthLabel").textContent="";
   msg(""); file.value="";
 });
+
+/* 保存済みの月：開く／削除 */
+document.getElementById("savedMonths").addEventListener("click",e=>{
+  const o=e.target.closest("[data-open]"); if(o){ openSaved(o.dataset.open); return; }
+  const d=e.target.closest("[data-del]");
+  if(d){ const ym=d.dataset.del;
+    if(confirm(ym.slice(0,4)+"年"+parseInt(ym.slice(4),10)+"月の保管データを削除します。よろしいですか？")){
+      localStorage.removeItem("meki:"+ym); renderSaved();
+    }
+  }
+});
+renderSaved();
 
 /* PWA：オフライン動作・ホーム画面追加のためのService Worker登録 */
 if("serviceWorker" in navigator){
