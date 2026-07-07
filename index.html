@@ -90,10 +90,23 @@
 </style>
 </head>
 <body>
+<!-- 暗証番号ロック -->
+<div id="lock" class="hidden" style="position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="max-width:320px;width:100%;text-align:center;">
+    <div style="font-size:40px;">🔒</div>
+    <h1 id="lockTitle" style="font-size:18px;margin:10px 0 4px;">暗証番号を入力</h1>
+    <p id="lockSub" class="muted" style="margin:0 0 14px;">めきき出納帳を開きます</p>
+    <input id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off"
+      style="width:100%;padding:14px;font-size:26px;text-align:center;letter-spacing:10px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);">
+    <div id="lockErr" style="color:var(--danger);font-size:13px;min-height:20px;margin-top:8px;"></div>
+    <button id="pinOk" class="btn primary" style="width:100%;font-size:16px;padding:13px;">開く</button>
+    <div style="margin-top:16px;"><a href="#" id="pinForgot" class="muted" style="font-size:12px;">番号を忘れた（リセット：保管データも消えます）</a></div>
+  </div>
+</div>
 <div class="wrap">
   <header>
     <h1>🏮 めきき市場 出納帳</h1>
-    <span class="muted" id="monthLabel"></span>
+    <span style="display:flex;align-items:center;gap:8px;"><span class="muted" id="monthLabel"></span><button id="pinChange" class="btn" style="padding:5px 9px;font-size:12px;" title="暗証番号を変更">🔒</button></span>
   </header>
   <p class="muted" id="intro">清算明細PDFを読み込んで、参加・人数・決済を選ぶだけ。計算は自動。データは端末の中だけで処理します。</p>
 
@@ -520,6 +533,54 @@ document.getElementById("savedMonths").addEventListener("click",e=>{
   }
 });
 renderSaved();
+
+/* ===== 暗証番号ロック ===== */
+async function pinHash(pin, salt){
+  const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt+":"+pin));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+const lockEl=document.getElementById("lock"), pinIn=document.getElementById("pinInput"),
+      lockTitle=document.getElementById("lockTitle"), lockSub=document.getElementById("lockSub"),
+      lockErr=document.getElementById("lockErr"), pinOkBtn=document.getElementById("pinOk");
+let pinFirst=null;   // 設定モードの1回目入力
+function lockShow(mode){ // mode: "unlock" | "setup"
+  lockEl.classList.remove("hidden");
+  lockEl.dataset.mode=mode; pinFirst=null;
+  if(mode==="setup"){ lockTitle.textContent="暗証番号を設定"; lockSub.textContent="4〜6桁の数字を決めてください"; pinOkBtn.textContent="設定する"; }
+  else { lockTitle.textContent="暗証番号を入力"; lockSub.textContent="めきき出納帳を開きます"; pinOkBtn.textContent="開く"; }
+  lockErr.textContent=""; pinIn.value=""; setTimeout(()=>pinIn.focus(),100);
+}
+function lockHide(){ lockEl.classList.add("hidden"); pinIn.value=""; }
+async function pinSubmit(){
+  const v=pinIn.value.trim();
+  if(!/^\d{4,6}$/.test(v)){ lockErr.textContent="4〜6桁の数字で入力してください"; pinIn.value=""; return; }
+  const mode=lockEl.dataset.mode;
+  if(mode==="setup"){
+    if(pinFirst===null){ pinFirst=v; lockTitle.textContent="もう一度入力"; lockSub.textContent="確認のため同じ番号を入力してください"; lockErr.textContent=""; pinIn.value=""; return; }
+    if(v!==pinFirst){ pinFirst=null; lockTitle.textContent="暗証番号を設定"; lockSub.textContent="4〜6桁の数字を決めてください"; lockErr.textContent="番号が一致しません。最初からどうぞ"; pinIn.value=""; return; }
+    const salt=[...crypto.getRandomValues(new Uint8Array(8))].map(b=>b.toString(16).padStart(2,"0")).join("");
+    localStorage.setItem("meki:pinSalt",salt);
+    localStorage.setItem("meki:pinHash",await pinHash(v,salt));
+    lockHide(); return;
+  }
+  const salt=localStorage.getItem("meki:pinSalt"), hash=localStorage.getItem("meki:pinHash");
+  if(await pinHash(v,salt)===hash){ lockHide(); }
+  else { lockErr.textContent="番号が違います"; pinIn.value=""; }
+}
+pinOkBtn.addEventListener("click",pinSubmit);
+pinIn.addEventListener("keydown",e=>{ if(e.key==="Enter") pinSubmit(); });
+document.getElementById("pinForgot").addEventListener("click",e=>{
+  e.preventDefault();
+  if(!confirm("暗証番号をリセットします。\n保管データ（保存済みの月）もすべて消去されます。よろしいですか？")) return;
+  Object.keys(localStorage).filter(k=>k.startsWith("meki:")).forEach(k=>localStorage.removeItem(k));
+  location.reload();
+});
+document.getElementById("pinChange").addEventListener("click",()=>{
+  if(!confirm("暗証番号を設定し直しますか？")) return;
+  lockShow("setup");
+});
+// 起動時：未設定なら設定、設定済みなら入力を要求
+lockShow(localStorage.getItem("meki:pinHash") ? "unlock" : "setup");
 
 /* PWA：オフライン動作・ホーム画面追加のためのService Worker登録 */
 if("serviceWorker" in navigator){

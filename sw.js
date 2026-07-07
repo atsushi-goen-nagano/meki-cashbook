@@ -1,5 +1,5 @@
 // めきき出納帳 Service Worker（オフライン動作）
-const CACHE = "meki-v2";
+const CACHE = "meki-v3";
 const ASSETS = [
   "./",
   "./index.html",
